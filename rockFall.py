@@ -14,13 +14,6 @@ class qButton(arcade.gui.UIFlatButton):
     def on_click(self, even: arcade.gui.UIOnClickEvent):
         arcade.exit()
 
-class initialize(arcade.gui.UIFlatButton):
-    def on_click(self, even: arcade.gui.UIOnClickEvent):
-        arcade.exit()
-        #window = MyGame()
-        #window.setup()
-        # arcade.run()
-
 class Coin(arcade.Sprite):
     def reset_pos(self):
         self.center_y = random.randrange(SCREEN_HEIGHT + 20, SCREEN_HEIGHT + 100)
@@ -31,10 +24,10 @@ class Coin(arcade.Sprite):
         if self.top < 0:
             self.reset_pos()
 
-class MyWindow(arcade.Window):
+class MainView(arcade.View):
 
     def __init__(self):
-        super().__init__(800, 600, "UIFlatButton Example", resizable=True)
+        super().__init__()
 
         self.manager = arcade.gui.UIManager()
         self.manager.enable()
@@ -42,13 +35,17 @@ class MyWindow(arcade.Window):
         arcade.set_background_color(arcade.color.FOREST_GREEN)
         self.v_box = arcade.gui.UIBoxLayout()
 
-        start_button = initialize(text="Start", width=200)
-        self.v_box.add(start_button)
+        start_button = arcade.gui.UIFlatButton(text="Start", width=200)
+        self.v_box.add(start_button.with_space_around(bottom=15))
+
+        @start_button.event("on_click")
+        def on_click_switch_button(event):
+            # Passing the main view into menu view as an argument.
+            game_view = Game(self)
+            self.window.show_view(game_view)
 
         quit_button = qButton(text="Quit", width=200)
         self.v_box.add(quit_button)
-
-        start_button.on_click = self.on_click_start
         
         self.manager.add(
             arcade.gui.UIAnchorWidget(
@@ -56,18 +53,22 @@ class MyWindow(arcade.Window):
                 anchor_y="center_y",
                 child=self.v_box)
         )
+        
+    def on_hide_view(self):
+        self.manager.disable()
 
-    def on_click_start(self, event):
-        print("Start:", event)
+    def on_show_view(self):
+        arcade.set_background_color([rgb - 50 for rgb in arcade.color.FOREST_GREEN])
+        self.manager.enable()
 
     def on_draw(self):
         self.clear()
         self.manager.draw()
 
         
-class MyGame(arcade.Window):
+class Game(arcade.View):
     def __init__(self):
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        super().__init__()
 
         self.player_sprite_list = None
         self.coin_sprite_list = None
@@ -118,6 +119,18 @@ class MyGame(arcade.Window):
         for coin in hit_list:
             coin.remove_from_sprite_lists()
             self.score += 1
+    def on_hide_view(self):
+        self.manager.disable()
 
-window = MyWindow()
-arcade.run()
+    def on_show_view(self):
+        arcade.set_background_color([rgb - 50 for rgb in arcade.color.FOREST_GREEN])
+        self.manager.enable()
+
+def main():
+    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    main_view = MainView()
+    window.show_view(main_view)
+    arcade.run()
+
+if __name__ == "__main__":
+    main()
