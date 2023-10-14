@@ -1,136 +1,208 @@
+import random
 import arcade
 import arcade.gui
-import random
 
+# --- Constants ---
 SPRITE_SCALING_PLAYER = 0.5
-SPRITE_SCALING_COIN = 0.2
-COIN_COUNT = 50
+SPRITE_SCALING_ROCK = .30
+MOVEMENT_SPEED = 7
+ROCK_COUNT = 50
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 SCREEN_TITLE = "RockinFeller"
 
-
-class qButton(arcade.gui.UIFlatButton):
-    def on_click(self, even: arcade.gui.UIOnClickEvent):
-        arcade.exit()
-
-class Coin(arcade.Sprite):
-    def reset_pos(self):
-        self.center_y = random.randrange(SCREEN_HEIGHT + 20, SCREEN_HEIGHT + 100)
-        self.center_x = random.randrange(SCREEN_WIDTH)
+class Player(arcade.Sprite):
 
     def update(self):
-        self.center_y -= 1
-        if self.top < 0:
-            self.reset_pos()
 
-class MainView(arcade.View):
+        self.center_x += self.change_x
+        self.center_y += self.change_y
 
+        # Check for out-of-bounds
+        if self.left < 0:
+            self.left = 0
+        elif self.right > SCREEN_WIDTH - 1:
+            self.right = SCREEN_WIDTH - 1
+
+        if self.bottom < 0:
+            self.bottom = 0
+        elif self.top > SCREEN_HEIGHT - 1:
+            self.top = SCREEN_HEIGHT - 1
+
+class InstructionView(arcade.View):
     def __init__(self):
         super().__init__()
 
         self.manager = arcade.gui.UIManager()
         self.manager.enable()
-
-        arcade.set_background_color(arcade.color.FOREST_GREEN)
         self.v_box = arcade.gui.UIBoxLayout()
 
         start_button = arcade.gui.UIFlatButton(text="Start", width=200)
         self.v_box.add(start_button.with_space_around(bottom=15))
 
-        @start_button.event("on_click")
-        def on_click_switch_button(event):
-            # Passing the main view into menu view as an argument.
-            game_view = Game(self)
-            self.window.show_view(game_view)
+        start_button.on_click = self.on_click_start
 
-        quit_button = qButton(text="Quit", width=200)
-        self.v_box.add(quit_button)
-        
         self.manager.add(
             arcade.gui.UIAnchorWidget(
                 anchor_x="center_x",
                 anchor_y="center_y",
                 child=self.v_box)
         )
-        
-    def on_hide_view(self):
-        self.manager.disable()
 
     def on_show_view(self):
-        arcade.set_background_color([rgb - 50 for rgb in arcade.color.FOREST_GREEN])
-        self.manager.enable()
+        arcade.set_background_color(arcade.csscolor.FOREST_GREEN)
+        arcade.set_viewport(0, self.window.width, 0, self.window.height)
 
     def on_draw(self):
         self.clear()
         self.manager.draw()
 
-        
-class Game(arcade.View):
+    def on_click_start(self, event):
+        game_view = GameView()
+        game_view.setup()
+        self.window.show_view(game_view)
+
+
+# class GameOverView(arcade.View):
+
+    # def __init__(self):
+        # super().__init__()
+        # self.texture = arcade.load_texture("")
+
+        # arcade.set_viewport(0, SCREEN_WIDTH - 1, 0, SCREEN_HEIGHT - 1)
+
+    # def on_draw(self):
+        # self.clear()
+        # self.texture.draw_sized(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+class GameView(arcade.View):
+
     def __init__(self):
+            # Call the parent class initializer
         super().__init__()
-
+            # Variables that will hold sprite lists
         self.player_sprite_list = None
-        self.coin_sprite_list = None
+        self.rock_sprite_list = None
 
+            # Set up the player info
         self.player_sprite = None
         self.score = 0
 
-        self.set_mouse_visible(False)
+        self.left_pressed = False
+        self.right_pressed = False
+        self.up_pressed = False
+        self.down_pressed = False
 
-        arcade.set_background_color(arcade.color.AMAZON)
+        self.collision_sound = arcade.Sound(":resources:sounds/upgrade3.wav")
+        arcade.set_background_color(arcade.color.FOREST_GREEN)
 
     def setup(self):
-
+            # Sprite lists
         self.player_sprite_list = arcade.SpriteList()
-        self.coin_sprite_list = arcade.SpriteList()
-
+        self.rock_sprite_list = arcade.SpriteList()
         self.score = 0
-
-        self.player_sprite = arcade.Sprite(":resources:images/animated_characters/female_person/femalePerson_idle.png", SPRITE_SCALING_PLAYER)
+            # Set up the player
+            # Character image from kenney.nl
+        self.player_sprite = Player(":resources:images/space_shooter/playerShip1_blue.png", SPRITE_SCALING_PLAYER)
         self.player_sprite.center_x = 50
         self.player_sprite.center_y = 50
         self.player_sprite_list.append(self.player_sprite)
-
-        for i in range(COIN_COUNT):
-            coin = Coin(":resources:images/items/coinGold.png", SPRITE_SCALING_COIN)
-
-            coin.center_x = random.randrange(SCREEN_WIDTH)
-            coin.center_y = random.randrange(SCREEN_HEIGHT)
-            self.coin_sprite_list.append(coin)
+            # Create the rocks
+        for i in range(ROCK_COUNT):
+                # Create the rock instance
+                # Rock image from kenney.nl
+            rock = Rock(":resources:images/space_shooter/meteorGrey_med1.png", SPRITE_SCALING_ROCK)
+                # Position the rock
+            rock.center_x = random.randrange(SCREEN_WIDTH)
+            rock.center_y = random.randrange(SCREEN_HEIGHT)
+                # Add the rock to the lists
+            self.rock_sprite_list.append(rock)
 
     def on_draw(self):
         self.clear()
-        self.coin_sprite_list.draw()
+        self.rock_sprite_list.draw()
         self.player_sprite_list.draw()
-
+            # Put the text on the screen.
         output = f"Score: {self.score}"
         arcade.draw_text(output, 10, 20, arcade.color.WHITE, 14)
 
-    def on_mouse_motion(self, x, y, dx, dy):
-        self.player_sprite.center_x = x
-        self.player_sprite.center_y = y
+    def update_player_speed(self):
+            # Calculate speed based on the keys pressed
+        self.player_sprite.change_x = 0
+        self.player_sprite.change_y = 0
+
+        if self.up_pressed and not self.down_pressed:
+            self.player_sprite.change_y = MOVEMENT_SPEED
+        elif self.down_pressed and not self.up_pressed:
+            self.player_sprite.change_y = -MOVEMENT_SPEED
+        if self.left_pressed and not self.right_pressed:
+            self.player_sprite.change_x = -MOVEMENT_SPEED
+        elif self.right_pressed and not self.left_pressed:
+            self.player_sprite.change_x = MOVEMENT_SPEED
 
     def on_update(self, delta_time):
-        self.coin_sprite_list.update()
-
-        hit_list = arcade.check_for_collision_with_list(self.player_sprite,
-                                                        self.coin_sprite_list)
-        for coin in hit_list:
-            coin.remove_from_sprite_lists()
+            # Call update on all sprites (The sprites don't do much in this
+            # example though.)
+        self.rock_sprite_list.update()
+        self.player_sprite_list.update()
+            # Generate a list of all sprites that collided with the player.
+        hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.rock_sprite_list)
+            # Loop through each colliding sprite, remove it, and add to the score.
+        for rock in hit_list:
+            rock.remove_from_sprite_lists()
+            self.collision_sound.play(0.1, 0, False, 1)
             self.score += 1
-    def on_hide_view(self):
-        self.manager.disable()
+    def on_key_press(self, key, modifiers):
 
-    def on_show_view(self):
-        arcade.set_background_color([rgb - 50 for rgb in arcade.color.FOREST_GREEN])
-        self.manager.enable()
+        if key == arcade.key.UP:
+            self.up_pressed = True
+            self.update_player_speed()
+        elif key == arcade.key.DOWN:
+            self.down_pressed = True
+            self.update_player_speed()
+        elif key == arcade.key.LEFT:
+            self.left_pressed = True
+            self.update_player_speed()
+        elif key == arcade.key.RIGHT:
+            self.right_pressed = True
+            self.update_player_speed()
 
+    def on_key_release(self, key, modifiers):
+
+        if key == arcade.key.UP:
+            self.up_pressed = False
+            self.update_player_speed()
+        elif key == arcade.key.DOWN:
+            self.down_pressed = False
+            self.update_player_speed()
+        elif key == arcade.key.LEFT:
+            self.left_pressed = False
+            self.update_player_speed()
+        elif key == arcade.key.RIGHT:
+            self.right_pressed = False
+            self.update_player_speed()
+
+class Rock(arcade.Sprite):
+
+    def reset_pos(self):
+            # Reset the rock to a random spot above the screen
+        self.center_y = random.randrange(SCREEN_HEIGHT + 20, SCREEN_HEIGHT + 100)
+        self.center_x = random.randrange(SCREEN_WIDTH)
+
+    def update(self):
+            # Move the rock
+        self.center_y -= 1
+            # See if the rock has fallen off the bottom of the screen.
+        if self.top < 0:
+            self.reset_pos()
 def main():
+    """ Main function """
+
     window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
-    main_view = MainView()
-    window.show_view(main_view)
+    start_view = InstructionView()
+    window.show_view(start_view)
     arcade.run()
+
 
 if __name__ == "__main__":
     main()
