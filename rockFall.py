@@ -131,10 +131,6 @@ class GameView(arcade.View):
         self.player_sprite.change_x = 0
         self.player_sprite.change_y = 0
 
-        if self.up_pressed and not self.down_pressed:
-            self.player_sprite.change_y = MOVEMENT_SPEED
-        elif self.down_pressed and not self.up_pressed:
-            self.player_sprite.change_y = -MOVEMENT_SPEED
         if self.left_pressed and not self.right_pressed:
             self.player_sprite.change_x = -MOVEMENT_SPEED
         elif self.right_pressed and not self.left_pressed:
@@ -154,13 +150,7 @@ class GameView(arcade.View):
             self.score += 1
     def on_key_press(self, key, modifiers):
 
-        if key == arcade.key.UP:
-            self.up_pressed = True
-            self.update_player_speed()
-        elif key == arcade.key.DOWN:
-            self.down_pressed = True
-            self.update_player_speed()
-        elif key == arcade.key.LEFT:
+        if key == arcade.key.LEFT:
             self.left_pressed = True
             self.update_player_speed()
         elif key == arcade.key.RIGHT:
@@ -169,13 +159,7 @@ class GameView(arcade.View):
 
     def on_key_release(self, key, modifiers):
 
-        if key == arcade.key.UP:
-            self.up_pressed = False
-            self.update_player_speed()
-        elif key == arcade.key.DOWN:
-            self.down_pressed = False
-            self.update_player_speed()
-        elif key == arcade.key.LEFT:
+        if key == arcade.key.LEFT:
             self.left_pressed = False
             self.update_player_speed()
         elif key == arcade.key.RIGHT:
